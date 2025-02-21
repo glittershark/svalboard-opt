@@ -1,0 +1,217 @@
+#+title: finding the optimal svalboard layout with gurobi
+
+* toy bipartite graph matching (weight per letter, cost per key)
+:PROPERTIES:
+:header-args: :results output :async t drawer :python "nix-shell --run python" :tangle :session project :timer-show no :exports both
+:END:
+
+#+begin_src python
+import gurobipy as gp
+import pandas as pd
+#+end_src
+
+#+RESULTS:
+
+#+begin_src python
+letter_frequencies = pd.read_csv(
+    './letter-frequencies.csv',
+    header=None,
+    names=['letter', 'texts', 'dictionaries'],
+    index_col='letter'
+)
+print(letter_frequencies)
+#+end_src
+
+#+RESULTS:
+#+begin_example
+| letter | texts | dictionaries |
+|--------+-------+--------------|
+| A      |   8.2 |          7.8 |
+| B      |   1.5 |          2.0 |
+| C      |   2.8 |          4.0 |
+| D      |   4.3 |          3.8 |
+| E      |  12.7 |         11.0 |
+| F      |   2.2 |          1.4 |
+| G      |   2.0 |          3.0 |
+| H      |   6.1 |          2.3 |
+| I      |   7.0 |          8.6 |
+| J      |  0.15 |         0.21 |
+| K      |  0.77 |         0.97 |
+| L      |   4.0 |          5.3 |
+| M      |   2.4 |          2.7 |
+| N      |   6.7 |          7.2 |
+| O      |   7.5 |          6.1 |
+| P      |   1.9 |          2.8 |
+| Q      | 0.095 |         0.19 |
+| R      |   6.0 |          7.3 |
+| S      |   6.3 |          8.7 |
+| T      |   9.1 |          6.7 |
+#+end_example
+
+#+begin_src python
+key_costs = [*map(abs, np.random.randn(26))] # TODO
+print(key_costs)
+#+end_src
+
+#+RESULTS:
+: [0.6157457300862134, 0.03211231225517796, 0.6047691479355067, 0.6212943838372912, 1.8418294006716434, 0.442823907683163, 0.7814186666993329, 1.5632755752978722, 0.4504061013638392, 0.9098241026932895, 0.23952776845483026, 0.05035860851797494, 0.04214181436463044, 1.4244782889127527, 1.7501396007467227, 1.1524297561118964, 1.5133704368195888, 0.8407086608049561, 0.1440062801528339, 0.9695105427459447, 0.7451289903807724, 0.8515190428889693, 0.15375355003925395, 1.5850605573094592, 1.5079215892356135, 1.2726935551341065]
+
+26 letters
+
+#+begin_src python
+letters = [*letter_frequencies.index]
+print(letters)
+assert(len(letters) == 26)
+#+end_src
+
+#+RESULTS:
+: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+
+26 keys, labeled by index (for now!)
+
+#+begin_src python
+keys = [*range(26)]
+#+end_src
+
+#+RESULTS:
+
+#+begin_src python
+m = gp.Model()
+keys_to_letters = m.addVars(letters, keys, vtype=gp.GRB.BINARY)
+# m.addConstr(sum(*keys_to_letters) = 26)
+#+end_src
+
+#+RESULTS:
+
+Can we look up the key assignments per letter?
+
+#+begin_src python
+print([keys_to_letters['A', key] for key in keys])
+#+end_src
+
+#+RESULTS:
+: [<gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>, <gurobi.Var *Awaiting Model Update*>]
+
+#+begin_src python
+m.addConstrs(
+    (
+        sum(keys_to_letters[letter, key] for key in keys) == 1
+        for letter in letters
+    ),
+    name='each letter assigned once'
+)
+#+end_src
+
+#+RESULTS:
+
+#+begin_src python
+m.addConstrs(
+    (
+        sum(keys_to_letters[letter, key] for letter in letters) == 1
+        for key in keys
+    ),
+    name='each key assigned once'
+)
+#+end_src
+
+#+RESULTS:
+
+
+*** OBJECTIVE FUNCTION BABEYY
+
+#+begin_src python
+def key_letter_weight(letter, key):
+    return letter_frequencies.loc[[letter]].texts.iloc[0] * key_costs[key]
+#+END_SRC
+
+#+RESULTS:
+
+#+begin_src python
+print(key_letter_weight('A', 10))
+#+END_SRC
+
+#+RESULTS:
+: 1.964127701329608
+
+#+begin_src python
+m.setObjective(
+    sum(
+        key_letter_weight(letter, key) * keys_to_letters[letter, key]
+        for letter in letters
+        for key in keys
+    ),
+    sense=gp.GRB.MINIMIZE
+)
+#+end_src
+
+#+RESULTS:
+
+#+begin_src python
+m.optimize()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Gurobi Optimizer version 11.0.3 build v11.0.3rc0 (linux64 - "NixOS 25.05 (Warbler)")
+CPU model: AMD Ryzen 7 7840U w/ Radeon  780M Graphics, instruction set [SSE2\AVX\AVX2\AVX512]
+Thread count: 8 physical cores, 16 logical processors, using up to 16 threads
+Optimize a model with 52 rows, 676 columns and 1352 nonzeros
+Model fingerprint: 0xbda6a150
+Variable types: 0 continuous, 676 integer (676 binary)
+Coefficient statistics:
+Matrix range     [1e+00, 1e+00]
+Objective range  [2e-03, 2e+01]
+Bounds range     [1e+00, 1e+00]
+RHS range        [1e+00, 1e+00]
+Found heuristic solution: objective 79.9210606
+Presolve time: 0.00s
+Presolved: 52 rows, 676 columns, 1352 nonzeros
+Variable types: 0 continuous, 676 integer (676 binary)
+Root relaxation: objective 4.181806e+01, 210 iterations, 0.00 seconds (0.00 work units)
+Nodes    \    Current Node    \     Objective Bounds      \     Work
+Expl Unexpl \  Obj  Depth IntInf \ Incumbent    BestBd   Gap \ It/Node Time
+,*    0     0               0      41.8180586   41.81806  0.00%     -    0s
+Explored 1 nodes (210 simplex iterations) in 0.01 seconds (0.01 work units)
+Thread count was 16 (of 16 available processors)
+Solution count 2: 41.8181 79.9211
+Optimal solution found (tolerance 1.00e-04)
+Best objective 4.181805855720e+01, best bound 4.181805855720e+01, gap 0.0000%
+#+end_example
+
+#+begin_src python
+for ((letter, key), assigned) in keys_to_letters.items():
+    if assigned.x == 1:
+        print(f'{letter} is assigned to key {key}')
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+A is assigned to key 11
+B is assigned to key 13
+C is assigned to key 6
+D is assigned to key 0
+E is assigned to key 1
+F is assigned to key 9
+G is assigned to key 15
+H is assigned to key 8
+I is assigned to key 22
+J is assigned to key 23
+K is assigned to key 16
+L is assigned to key 3
+M is assigned to key 17
+N is assigned to key 10
+O is assigned to key 18
+P is assigned to key 25
+Q is assigned to key 14
+R is assigned to key 2
+S is assigned to key 5
+T is assigned to key 12
+U is assigned to key 20
+V is assigned to key 24
+W is assigned to key 21
+X is assigned to key 7
+Y is assigned to key 19
+Z is assigned to key 4
+#+end_example
+* TODO real bipartite graph matching, with real keys and real costs
+* TODO add digrams and trigrams
