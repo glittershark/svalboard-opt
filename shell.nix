@@ -1,4 +1,8 @@
-{ pkgs ? import <nixpkgs> { config.allowUnfree = true; } }:
+{ pkgs ? import (builtins.fetchTarball {
+  url =
+    "https://github.com/NixOS/nixpkgs/archive/31ff66eb77d02e9ac34b7256a02edb1c43fb9998.tar.gz";
+  sha256 = "14a1rd8zk7ncgl453brj4hgg8axf8izviim5f5rpnagwkhhwxffx";
+}) { config.allowUnfree = true; } }:
 
 with pkgs;
 
@@ -11,7 +15,7 @@ let
       scikit-learn
       gurobipy
       networkx
-      gurobi-optimods
+      gurobipy-pandas
       ipython
     ];
 
@@ -29,28 +33,6 @@ let
     build-system = with python3Packages; [ hatchling ];
 
     dependencies = with python3Packages; [ gurobipy pandas ];
-  };
-
-  gurobi-optimods = python3Packages.buildPythonPackage rec {
-    pname = "gurobi-optimods";
-    version = "2.3.1";
-    pyproject = true;
-    src = fetchFromGitHub {
-      owner = "Gurobi";
-      repo = "gurobi-optimods";
-      rev = "refs/tags/v${version}";
-      sha256 = "sha256-+6tQVCHW6vbdaV/YaetCmA0oTkKxF06aBZWiyVpJkiQ=";
-    };
-
-    build-system = with python3Packages; [ hatchling ];
-
-    dependencies = with python3Packages; [
-      gurobipy
-      gurobipy-pandas
-      numpy
-      pandas
-      scipy
-    ];
   };
 
   python = pkgs.python3.withPackages pythonPackages;
