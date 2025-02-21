@@ -12,6 +12,7 @@ let
       pandas
       matplotlib
       numpy
+      pypdf
       scikit-learn
       gurobipy
       networkx

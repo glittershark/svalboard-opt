@@ -1,4 +1,4 @@
-#+title: finding the optimal svalboard layout with gurobi
+#+title: finding the optimal svalboard layout using gurobi
  #+PROPERTY: header-args:python :results output :async t drawer :python "nix-shell --run python" :tangle :session project :timer-show no :exports both
 
 #+begin_src python
@@ -8,6 +8,8 @@ import numpy as np
 from dataclasses import dataclass
 from typing import List
 #+end_src
+
+#+RESULTS:
 
 #+begin_src python
 letter_frequencies = pd.read_csv(
@@ -26,6 +28,139 @@ keys = [*range(26)]
 #+end_src
 
 #+RESULTS:
+
+* a different letter frequency method
+#+begin_src shell
+curl -O https://cspages.ucalgary.ca/~jacobs/Courses/cpsc669/F14/handouts/frequency.pdf
+#+end_src
+
+#+RESULTS:
+
+
+#+begin_src python
+from pypdf import PdfReader
+#+END_SRC
+
+#+RESULTS:
+
+
+#+begin_src python
+reader = PdfReader('frequency.pdf')
+#+END_SRC
+
+#+RESULTS:
+
+
+#+begin_src python
+page = reader.pages[0]
+text = page.extract_text()
+print(text)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+FREQUENCIES OF LETTERS, DIGRAPHS, AND TRIGRAPHS IN
+ENGLISH
+The follo wing table con tains a sample of exp ected frequency distributions based on military
+text (tak en from \Man ual for the Solution of Military Cip ers" b y P ark er Hitt).
+Single Letters Digraphs T rigraphs
+(based on 10000 letters) (based on 2000 letters) (based on 10000 letters)
+E 1277 TH 50 THE 89
+T 855 ER 40 AND 54
+O 807 ON 39 THA 47
+A 778 AN 38 ENT 39
+N 686 RE 36 ION 36
+I 667 HE 33 TIO 33
+R 651 IN 31 F OR 33
+S 622 ED 30 NDE 31
+H 595 ND 30 HAS 28
+D 402 HA 26 NCE 27
+L 372 A T 25 EDT 27
+U 308 EN 25 TIS 25
+C 296 ES 25
+M 288 OF 25
+P 223 OR 25
+F 197 NT 24
+Y 196
+W 176
+G 174
+B 141
+V 112
+K 74
+J 51
+X 27
+Z 17
+Q 8
+1
+#+end_example
+
+#+begin_src python
+text = """
+E 1277 TH 50 THE 89
+T 855 ER 40 AND 54
+O 807 ON 39 THA 47
+A 778 AN 38 ENT 39
+N 686 RE 36 ION 36
+I 667 HE 33 TIO 33
+R 651 IN 31 FOR 33
+S 622 ED 30 NDE 31
+H 595 ND 30 HAS 28
+D 402 HA 26 NCE 27
+L 372 AT 25 EDT 27
+U 308 EN 25 TIS 25
+C 296 ES 25
+M 288 OF 25
+P 223 OR 25
+F 197 NT 24
+Y 196
+W 176
+G 174
+B 141
+V 112
+K 74
+J 51
+X 27
+Z 17
+Q 8
+"""
+#+end_src
+
+#+RESULTS:
+
+#+begin_src python
+import itertools
+
+letter_weights = {}
+digram_weights = {}
+trigram_weights = {}
+
+for line in text.splitlines():
+    if not line:
+        continue
+
+    for chunk, freq in itertools.batched(line.split(' '), 2):
+        freq = int(freq)
+        if len(chunk) == 1:
+            letter_weights[chunk] = freq
+        elif len(chunk) == 2:
+            digram_weights[chunk] = freq
+        elif len(chunk) == 3:
+            trigram_weights[chunk] = freq
+        else:
+            raise "Wrong chunk length"
+#+END_SRC
+
+#+RESULTS:
+
+
+#+begin_src python
+print(letter_weights, digram_weights, trigram_weights)
+#+END_SRC
+
+#+RESULTS:
+: {'E': 1277, 'T': 855, 'O': 807, 'A': 778, 'N': 686, 'I': 667, 'R': 651, 'S': 622, 'H': 595, 'D': 402, 'L': 372, 'U': 308, 'C': 296, 'M': 288, 'P': 223, 'F': 197, 'Y': 196, 'W': 176, 'G': 174, 'B': 141, 'V': 112, 'K': 74, 'J': 51, 'X': 27, 'Z': 17, 'Q': 8}
+: {'TH': 50, 'ER': 40, 'ON': 39, 'AN': 38, 'RE': 36, 'HE': 33, 'IN': 31, 'ED': 30, 'ND': 30, 'HA': 26, 'AT': 25, 'EN': 25, 'ES': 25, 'OF': 25, 'OR': 25, 'NT': 24}
+: {'THE': 89, 'AND': 54, 'THA': 47, 'ENT': 39, 'ION': 36, 'TIO': 33, 'FOR': 33, 'NDE': 31, 'HAS': 28, 'NCE': 27, 'EDT': 27, 'TIS': 25}
 
 * scratch: toy bipartite graph matching (weight per letter, cost per key)
 
