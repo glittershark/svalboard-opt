@@ -1,16 +1,17 @@
 #+title: finding the optimal svalboard layout with gurobi
-
-* toy bipartite graph matching (weight per letter, cost per key)
-:PROPERTIES:
-:header-args: :results output :async t drawer :python "nix-shell --run python" :tangle :session project :timer-show no :exports both
-:END:
+ #+PROPERTY: header-args:python :results output :async t drawer :python "nix-shell --run python" :tangle :session project :timer-show no :exports both
 
 #+begin_src python
 import gurobipy as gp
 import pandas as pd
+import numpy as np
+from dataclasses import dataclass
+from typing import List
 #+end_src
 
 #+RESULTS:
+
+* scratch: toy bipartite graph matching (weight per letter, cost per key)
 
 #+begin_src python
 letter_frequencies = pd.read_csv(
@@ -54,7 +55,7 @@ print(key_costs)
 #+end_src
 
 #+RESULTS:
-: [0.6157457300862134, 0.03211231225517796, 0.6047691479355067, 0.6212943838372912, 1.8418294006716434, 0.442823907683163, 0.7814186666993329, 1.5632755752978722, 0.4504061013638392, 0.9098241026932895, 0.23952776845483026, 0.05035860851797494, 0.04214181436463044, 1.4244782889127527, 1.7501396007467227, 1.1524297561118964, 1.5133704368195888, 0.8407086608049561, 0.1440062801528339, 0.9695105427459447, 0.7451289903807724, 0.8515190428889693, 0.15375355003925395, 1.5850605573094592, 1.5079215892356135, 1.2726935551341065]
+: [0.8503275992394355, 1.6167658562189116, 0.2830689248704767, 1.0155322703229546, 0.1600824116332789, 0.021097920847273247, 0.7282346632832309, 0.4782015163011322, 2.5741366586781993, 0.019397697910186536, 1.704405556848405, 2.0705192360819047, 0.1751303843351309, 0.5611328309187863, 0.1573387380844285, 0.8338025974809553, 0.17955764685577943, 0.6038608127068892, 0.2530755441386779, 1.1285021797871388, 0.0559717233093392, 0.3834140816599339, 0.2687149839553213, 0.43667658900129713, 0.3428545630754759, 0.6571548638725636]
 
 26 letters
 
@@ -213,5 +214,113 @@ X is assigned to key 7
 Y is assigned to key 19
 Z is assigned to key 4
 #+end_example
-* TODO real bipartite graph matching, with real keys and real costs
+
+* DONE generalized graph matching
+CLOSED: [2025-02-20 Thu 22:15]
+
+#+begin_src python
+@dataclass
+class KeyboardLayout:
+    key_assignments: List[str]
+
+    def assigned_letter(self, key):
+        return self.key_assignments[letter]
+
+    def assigned_key(self, letter):
+        return self.key_assignments.index(letter)
+#+end_src
+
+#+RESULTS:
+
+#+begin_src python
+def find_optimal_layout(letter_weights, key_costs):
+    m = gp.Model()
+    keys_to_letters = m.addVars(letters, keys, vtype=gp.GRB.BINARY)
+
+    m.addConstrs(
+        (
+            sum(keys_to_letters[letter, key] for key in keys) == 1
+                for letter in letters
+        ),
+        name='each letter assigned once'
+    )
+
+    m.addConstrs(
+        (
+            sum(keys_to_letters[letter, key] for letter in letters) == 1
+            for key in keys
+        ),
+        name='each key assigned once'
+    )
+
+    def key_letter_weight(letter, key):
+        return letter_weights[letter] * key_costs[key]
+
+    m.setObjective(
+        sum(
+            key_letter_weight(letter, key) * keys_to_letters[letter, key]
+            for letter in letters
+            for key in keys
+        ),
+        sense=gp.GRB.MINIMIZE
+    )
+
+    m.optimize()
+
+    key_assignments = [None for _ in range(len(key_costs))]
+    for ((letter, key), assigned) in keys_to_letters.items():
+        if assigned.x == 1:
+            key_assignments[key] = letter
+
+    return KeyboardLayout(key_assignments)
+#+end_src
+
+#+RESULTS:
+
+#+begin_src python
+letter_weights = {
+  letter: letter_frequencies.loc[[letter]].texts.iloc[0]
+  for letter in letters
+}
+keyboard_layout = find_optimal_layout(letter_weights, key_costs)
+print(keyboard_layout)
+#+end_src
+
+#+RESULTS:
+#+begin_example
+Gurobi Optimizer version 11.0.3 build v11.0.3rc0 (linux64 - "NixOS 25.05 (Warbler)")
+CPU model: AMD Ryzen 7 7840U w/ Radeon  780M Graphics, instruction set [SSE2\AVX\AVX2\AVX512]
+Thread count: 8 physical cores, 16 logical processors, using up to 16 threads
+Optimize a model with 52 rows, 676 columns and 1352 nonzeros
+Model fingerprint: 0xbda6a150
+Variable types: 0 continuous, 676 integer (676 binary)
+Coefficient statistics:
+Matrix range     [1e+00, 1e+00]
+Objective range  [2e-03, 2e+01]
+Bounds range     [1e+00, 1e+00]
+RHS range        [1e+00, 1e+00]
+Found heuristic solution: objective 79.9210606
+Presolve time: 0.00s
+Presolved: 52 rows, 676 columns, 1352 nonzeros
+Variable types: 0 continuous, 676 integer (676 binary)
+Root relaxation: objective 4.181806e+01, 210 iterations, 0.00 seconds (0.00 work units)
+Nodes    \    Current Node    \     Objective Bounds      \     Work
+Expl Unexpl \  Obj  Depth IntInf \ Incumbent    BestBd   Gap \ It/Node Time
+,*    0     0               0      41.8180586   41.81806  0.00%     -    0s
+Explored 1 nodes (210 simplex iterations) in 0.00 seconds (0.01 work units)
+Thread count was 16 (of 16 available processors)
+Solution count 2: 41.8181 79.9211
+Optimal solution found (tolerance 1.00e-04)
+Best objective 4.181805855720e+01, best bound 4.181805855720e+01, gap 0.0000%
+KeyboardLayout(key_assignments=['D', 'E', 'R', 'L', 'Z', 'S', 'C', 'X', 'H', 'F', 'N', 'A', 'T', 'B', 'Q', 'G', 'K', 'M', 'O', 'Y', 'U', 'W', 'I', 'J', 'V', 'P'])
+#+end_example
+
 * TODO add digrams and trigrams
+** scratch
+
+#+begin_src python
+
+#+end_src
+
+* TODO mismatched lengths of keys and positions
+* TODO real bipartite graph matching, with real keys and real costs
