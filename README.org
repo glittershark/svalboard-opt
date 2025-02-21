@@ -1,0 +1,10 @@
+#+title: svalboard optimization
+
+this repository contains an exploration of using mixed integer programming
+(currently via gurobipy) to find the /optimal/ layout for the [[https://svalboard.com/][svalboard]]. the
+idea is to consider a bunch of factors including the frequency of letters,
+digrams, and trigrams, and costs for individual keys and also sequences of
+movements.
+
+currently, it's entirely a [[https://github.com/glittershark/svalboard-opt/blob/main/notebook.org][literate org file]] containing scratch explorations
+into the problem space. more to come soon, probably.
