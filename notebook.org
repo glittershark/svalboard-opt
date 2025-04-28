@@ -2,6 +2,15 @@
  #+PROPERTY: header-args:python :results output :async t drawer :python "nix-shell --run python" :tangle :session project :timer-show no :exports both
 
 #+begin_src python
+import os
+os.environ['GRB_LICENSE_FILE'] = f'{os.getcwd()}/gurobi.lic'
+print(os.getenv('GRB_LICENSE_FILE'))
+#+end_src
+
+#+RESULTS:
+: /home/aspen/code/svalboard-opt/svalboard-opt/gurobi.lic
+
+#+begin_src python
 import gurobipy as gp
 import pandas as pd
 import numpy as np
