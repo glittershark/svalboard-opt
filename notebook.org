@@ -19,7 +19,7 @@ letter_frequencies = pd.read_csv(
     index_col='letter'
 )
 
-key_costs = [*map(abs, np.random.randn(26))] # TODO
+key_costs = np.abs(np.random.randn(26))
 
 letters = [*letter_frequencies.index]
 assert(len(letters) == 26)
@@ -34,22 +34,15 @@ keys = [*range(26)]
 curl -O https://cspages.ucalgary.ca/~jacobs/Courses/cpsc669/F14/handouts/frequency.pdf
 #+end_src
 
-#+RESULTS:
-
-
 #+begin_src python
 from pypdf import PdfReader
 #+END_SRC
-
-#+RESULTS:
-
 
 #+begin_src python
 reader = PdfReader('frequency.pdf')
 #+END_SRC
 
 #+RESULTS:
-
 
 #+begin_src python
 page = reader.pages[0]
@@ -129,10 +122,11 @@ Q 8
 
 #+begin_src python
 import itertools
+import collections
 
-letter_weights = {}
-digram_weights = {}
-trigram_weights = {}
+letter_weights = collections.defaultdict(lambda: 0)
+digraph_weights = collections.defaultdict(lambda: 0)
+trigraph_weights = collections.defaultdict(lambda: 0)
 
 for line in text.splitlines():
     if not line:
@@ -143,9 +137,9 @@ for line in text.splitlines():
         if len(chunk) == 1:
             letter_weights[chunk] = freq
         elif len(chunk) == 2:
-            digram_weights[chunk] = freq
+            digraph_weights[chunk] = freq
         elif len(chunk) == 3:
-            trigram_weights[chunk] = freq
+            trigraph_weights[chunk] = freq
         else:
             raise "Wrong chunk length"
 #+END_SRC
@@ -154,14 +148,13 @@ for line in text.splitlines():
 
 
 #+begin_src python
-print(letter_weights, digram_weights, trigram_weights)
+print(letter_weights, digraph_weights, trigraph_weights)
 #+END_SRC
 
 #+RESULTS:
-: {'E': 1277, 'T': 855, 'O': 807, 'A': 778, 'N': 686, 'I': 667, 'R': 651, 'S': 622, 'H': 595, 'D': 402, 'L': 372, 'U': 308, 'C': 296, 'M': 288, 'P': 223, 'F': 197, 'Y': 196, 'W': 176, 'G': 174, 'B': 141, 'V': 112, 'K': 74, 'J': 51, 'X': 27, 'Z': 17, 'Q': 8}
-: {'TH': 50, 'ER': 40, 'ON': 39, 'AN': 38, 'RE': 36, 'HE': 33, 'IN': 31, 'ED': 30, 'ND': 30, 'HA': 26, 'AT': 25, 'EN': 25, 'ES': 25, 'OF': 25, 'OR': 25, 'NT': 24}
-: {'THE': 89, 'AND': 54, 'THA': 47, 'ENT': 39, 'ION': 36, 'TIO': 33, 'FOR': 33, 'NDE': 31, 'HAS': 28, 'NCE': 27, 'EDT': 27, 'TIS': 25}
-
+: defaultdict(<function <lambda> at 0x7f16781acfe0>, {'E': 1277, 'T': 855, 'O': 807, 'A': 778, 'N': 686, 'I': 667, 'R': 651, 'S': 622, 'H': 595, 'D': 402, 'L': 372, 'U': 308, 'C': 296, 'M': 288, 'P': 223, 'F': 197, 'Y': 196, 'W': 176, 'G': 174, 'B': 141, 'V': 112, 'K': 74, 'J': 51, 'X': 27, 'Z': 17, 'Q': 8})
+: defaultdict(<function <lambda> at 0x7f16781ad120>, {'TH': 50, 'ER': 40, 'ON': 39, 'AN': 38, 'RE': 36, 'HE': 33, 'IN': 31, 'ED': 30, 'ND': 30, 'HA': 26, 'AT': 25, 'EN': 25, 'ES': 25, 'OF': 25, 'OR': 25, 'NT': 24})
+: defaultdict(<function <lambda> at 0x7f16781acf40>, {'THE': 89, 'AND': 54, 'THA': 47, 'ENT': 39, 'ION': 36, 'TIO': 33, 'FOR': 33, 'NDE': 31, 'HAS': 28, 'NCE': 27, 'EDT': 27, 'TIS': 25})
 * scratch: toy bipartite graph matching (weight per letter, cost per key)
 
 #+begin_src python
@@ -176,34 +169,28 @@ print(letter_frequencies)
 
 #+RESULTS:
 #+begin_example
-         texts  dictionaries
-letter
-A        8.200          7.80
-B        1.500          2.00
-C        2.800          4.00
-D        4.300          3.80
-E       12.700         11.00
-F        2.200          1.40
-G        2.000          3.00
-H        6.100          2.30
-I        7.000          8.60
-J        0.150          0.21
-K        0.770          0.97
-L        4.000          5.30
-M        2.400          2.70
-N        6.700          7.20
-O        7.500          6.10
-P        1.900          2.80
-Q        0.095          0.19
-R        6.000          7.30
-S        6.300          8.70
-T        9.100          6.70
-U        2.800          3.30
-V        0.980          1.00
-W        2.400          0.91
-X        0.150          0.27
-Y        2.000          1.60
-Z        0.074          0.44
+| letter | texts | dictionaries |
+|--------+-------+--------------|
+| A      |   8.2 |          7.8 |
+| B      |   1.5 |          2.0 |
+| C      |   2.8 |          4.0 |
+| D      |   4.3 |          3.8 |
+| E      |  12.7 |         11.0 |
+| F      |   2.2 |          1.4 |
+| G      |   2.0 |          3.0 |
+| H      |   6.1 |          2.3 |
+| I      |   7.0 |          8.6 |
+| J      |  0.15 |         0.21 |
+| K      |  0.77 |         0.97 |
+| L      |   4.0 |          5.3 |
+| M      |   2.4 |          2.7 |
+| N      |   6.7 |          7.2 |
+| O      |   7.5 |          6.1 |
+| P      |   1.9 |          2.8 |
+| Q      | 0.095 |         0.19 |
+| R      |   6.0 |          7.3 |
+| S      |   6.3 |          8.7 |
+| T      |   9.1 |          6.7 |
 #+end_example
 
 #+begin_src python
@@ -212,7 +199,7 @@ print(key_costs)
 #+end_src
 
 #+RESULTS:
-: [np.float64(0.02387488186066071), np.float64(0.7103132443249681), np.float64(0.19642907436898338), np.float64(0.48811179962227635), np.float64(0.7749065067325275), np.float64(0.7694172901723757), np.float64(0.43521406397776163), np.float64(0.6201081299418513), np.float64(0.7966685402496775), np.float64(0.6017253369967582), np.float64(1.7478302031002089), np.float64(1.0820063748903372), np.float64(1.2299351517894668), np.float64(0.4094108038149714), np.float64(0.9979793322336706), np.float64(0.5782083925106873), np.float64(1.5702957466728036), np.float64(1.2529075552454252), np.float64(0.08069004734831492), np.float64(0.2509690071251809), np.float64(0.03779693318665008), np.float64(0.1134612042132042), np.float64(0.02833053220014783), np.float64(2.203872722059491), np.float64(1.0766781402170649), np.float64(1.1550277727312375)]
+: [np.float64(0.01125620334899332), np.float64(0.4257728691357156), np.float64(1.98486209175248), np.float64(0.9500690074734175), np.float64(0.25673361615924034), np.float64(1.115791975402416), np.float64(0.8794348571786941), np.float64(0.6294263425700412), np.float64(0.7609958385915404), np.float64(0.2560849437727129), np.float64(1.0977877081849627), np.float64(2.547535126645883), np.float64(1.5255747682550629), np.float64(0.8898091929139141), np.float64(0.15779419077568735), np.float64(0.5680360597546003), np.float64(0.49045769666190964), np.float64(0.19247979940586576), np.float64(1.0810373952819028), np.float64(1.334981309521846), np.float64(0.483335409581812), np.float64(1.511155445064785), np.float64(0.22815488739446826), np.float64(0.6166766775434558), np.float64(0.019807526715359427), np.float64(0.955123925325639)]
 
 26 letters
 
@@ -473,8 +460,290 @@ Best objective 3.611876893885e+01, best bound 3.611876893885e+01, gap 0.0000%
 KeyboardLayout(key_assignments=['X', 'L', 'O', 'F', 'M', 'A', 'N', 'J', 'H', 'Z', 'R', 'P', 'B', 'C', 'Y', 'V', 'W', 'G', 'T', 'D', 'E', 'S', 'Q', 'I', 'U', 'K'])
 #+end_example
 
-* TODO add digrams and trigrams
+* actually modeling the svalboard (and its keys)
+
+#+begin_src shell
+#curl https://www.keyboard-layout-editor.com/bg/plastic/abs-wa.jpg > svalboard.jpg
+xclip -out -selection clipboard > svalboard.jpg
+#+end_src
+
+#+RESULTS:
+
+[[file:svalboard.jpg]]
+
+#+begin_src
+
+         +---+
+         | w |
+     +---+---+---+
+     | esc | s | b |
+     +---+---+---+
+         | x |
+         +---+
+
+#+end_src
+
+hmm no that's gonna be annoying
+
+let's just say
+
+#+begin_src python
+def keys_in_finger_cluster(cluster_idx):
+    [ (cluster_idx, key) for key in ('north', 'south', 'east', 'west') ]
+#+end_src
+
+#+RESULTS:
+
+* ACTIVE add digraphs and trigraphs
+
+#+begin_src
++1--+
+| a |
++2--+
+| b |
++---+
+
+k1: 4
+k2: 9
+
+k1->k2 8
+k2->k1 9
+
+{ 'ab': 4 }
+{ 'ba': 7 }
+{ 'a': 2 }
+{ 'b': 6 }
+
+total:
+    k1 * 'a'      = 4 * 2 = 8
+  + k2 * 'b'      = 9 * 6 = 54
+  + k1->k2 * 'ab' = 8 * 4 = 32
+  + k2->k1 * 'ba' = 9 * 7 = 63
+                          = 157
+#+end_src
+
+** dummy key transfer weights
+
+#+begin_src python
+key_transfer_costs = np.abs(np.random.randn(26, 26))
+#+end_src
+
+#+RESULTS:
+
+** all the digraphs please
+
+#+begin_src python
+digraphs = [*digraph_weights.keys()]
+#+end_src
+
+#+RESULTS:
+
 ** scratch
+
+#+begin_src
++1--+
+| a |
++2--+
+| b |
++---+
+
+k1: 4
+k2: 9
+
+k1->k2 8
+k2->k1 9
+
+{ 'ab': 4 }
+{ 'ba': 7 }
+{ 'a': 2 }
+{ 'b': 6 }
+
+total:
+    k1 * 'a'      = 4 * 2 = 8
+  + k2 * 'b'      = 9 * 6 = 54
+  + k1->k2 * 'ab' = 8 * 4 = 32
+  + k2->k1 * 'ba' = 9 * 7 = 63
+                          = 157
+#+end_src
+
+#+begin_src python
+m = gp.Model()
+keys_to_letters = m.addVars(letters, keys, vtype=gp.GRB.BINARY)
+
+m.addConstrs(
+    (
+        sum(keys_to_letters[letter, key] for key in keys) == 1
+        for letter in letters
+    ),
+    name='each letter assigned once'
+)
+
+m.addConstrs(
+    (
+        sum(keys_to_letters[letter, key] for letter in letters) == 1
+        for key in keys
+    ),
+    name='each key assigned once'
+)
+
+def key_letter_weight(letter, key):
+    return letter_weights[letter] * key_costs[key]
+
+def digraph_weight(digraph, key_pair):
+    return digraph_weights[digraph] * key_transfer_costs[key_pair]
+
+
+m.setObjective(
+    sum(
+        key_letter_weight(letter, key) * keys_to_letters[letter, key]
+        for letter in letters
+        for key in keys
+    )
+    + sum(
+        digraph_weight(digraph, (key1, key2)) *
+          keys_to_letters[digraph[0], key1] *
+          keys_to_letters[digraph[1], key2]
+        for digraph in digraphs
+        for key1 in keys
+        for key2 in keys
+    ),
+    sense=gp.GRB.MINIMIZE
+)
+
+m.optimize()
+
+key_assignments = [None for _ in range(len(key_costs))]
+for ((letter, key), assigned) in keys_to_letters.items():
+    if assigned.x == 1:
+        key_assignments[key] = letter
+
+layout = KeyboardLayout(key_assignments)
+#+end_src
+
+#+RESULTS:
+: Gurobi Optimizer version 12.0.1 build v12.0.1rc0 (linux64 - "NixOS 25.05 (Warbler)")
+: CPU model: AMD Ryzen 7 7840U w/ Radeon  780M Graphics, instruction set [SSE2\AVX\AVX2\AVX512]
+: Thread count: 8 physical cores, 16 logical processors, using up to 16 threads
+: Traceback (most recent call last):
+: File "<org babel source block>", line 8, in <module>
+: File "<org babel source block>", line 44, in <module>
+: File "src/gurobipy/_model.pyx", line 903, in gurobipy._model.Model.optimize
+: gurobipy._exception.GurobiError: Model too large for size-limited license; visit https://gurobi.com/unrestricted for more information
+
+#+begin_src python
+
+#+end_src
+
+** now with mip, not gurobi
+
+#+begin_src python
+m = mip.Model(sense = mip.MINIMIZE, solver = mip.CBC)
+#+end_src
+
+#+RESULTS:
+: Traceback (most recent call last):
+: File "<org babel source block>", line 8, in <module>
+: File "<org babel source block>", line 1, in <module>
+: File "/nix/store/7v41yk8cw16a7wm8vpbha0yi3gw10x1g-python3-3.12.8-env/lib/python3.12/site-packages/mip/model.py", line 104, in __init__
+: self.constrs = mip.ConstrList(self)
+: ^^^
+: UnboundLocalError: cannot access local variable 'mip' where it is not associated with a value
+
+#+begin_src python
+print(sorted(letter_weights.keys()))
+#+end_src
+
+#+RESULTS:
+: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+
+#+begin_src python
+m = mip.Model()
+keys_to_letters_matrix = m.add_var_tensor((26, 26), name='keys_to_letters', lb=0.0, ub=1.0, var_type='B')
+keys_to_letters = {
+  letter: keys_to_letters_matrix[i]
+  for i, letter in enumerate(sorted(letter_weights.keys()))
+}
+#+end_src
+
+#+RESULTS:
+
+
+#+begin_src python
+for letter in letters:
+    m.add_constr(
+        mip.xsum(keys_to_letters[letter][key] for key in keys) == 1,
+        name='each letter assigned once'
+    )
+#+end_src
+
+#+RESULTS:
+
+#+begin_src python
+for key in keys:
+    m.add_constr(
+        sum(keys_to_letters[letter][key] for letter in letters) == 1,
+        name='each key assigned once'
+    )
+#+end_src
+
+#+RESULTS:
+
+#+begin_src python
+def key_letter_weight(letter, key):
+    return letter_weights[letter] * key_costs[key]
+
+def digraph_weight(digraph, key_pair):
+    return digraph_weights[digraph] * key_transfer_costs[key_pair]
+
+
+m.objective = (
+    mip.xsum(
+        key_letter_weight(letter, key) * keys_to_letters[letter][key]
+        for letter in letters
+        for key in keys
+    )
+    + mip.xsum(
+        digraph_weight(digraph, (key1, key2)) *
+          keys_to_letters[digraph[0]][key1] *
+          keys_to_letters[digraph[1]][key2]
+        for digraph in digraphs
+        for key1 in keys
+        for key2 in keys
+    )
+)
+#+end_src
+
+#+RESULTS:
+#+begin_example
+Traceback (most recent call last):
+File "<org babel source block>", line 8, in <module>
+File "<org babel source block>", line 14, in <module>
+File "/nix/store/7v41yk8cw16a7wm8vpbha0yi3gw10x1g-python3-3.12.8-env/lib/python3.12/site-packages/mip/model.py", line 1561, in xsum
+for term in terms:
+^^^^^
+File "<org babel source block>", line 15, in <genexpr>
+File "/nix/store/7v41yk8cw16a7wm8vpbha0yi3gw10x1g-python3-3.12.8-env/lib/python3.12/site-packages/mip/entities.py", line 144, in __mul__
+raise TypeError("Can not multiply with type {}".format(type(other)))
+TypeError: Can not multiply with type <class 'mip.entities.Var'>
+#+end_example
+
+
+#+begin_src python
+m.optimize()
+
+key_assignments = [None for _ in range(len(key_costs))]
+for ((letter, key), assigned) in keys_to_letters.items():
+    if assigned.x == 1:
+        key_assignments[key] = letter
+
+layout = KeyboardLayout(key_assignments)
+#+end_src
+
+#+RESULTS:
+: Traceback (most recent call last):
+: File "<org babel source block>", line 8, in <module>
+: File "<org babel source block>", line 2, in <module>
+: AttributeError: 'Model' object has no attribute 'addVars'. Did you mean: 'add_var'?
 
 #+begin_src python
 
