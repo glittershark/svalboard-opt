@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import os
 import re
@@ -8,9 +8,12 @@ import re
 
 @dataclass
 class LetterWeights:
-    letters: dict[str, int]  # map from letter to frequency
-    digraphs: dict[str, int]  # map from letter pair to frequency
-    trigraphs: dict[str, int]  # map from letter triplet to frequency
+    # map from letter to frequency
+    letters: dict[str, int] = field(default_factory=dict)
+    # map from letter pair to frequency
+    digraphs: dict[str, int] = field(default_factory=dict)
+    # map from letter triplet to frequency
+    trigraphs: dict[str, int] = field(default_factory=dict)
 
     def __init__(self):
         self.letters = {}
@@ -53,3 +56,12 @@ class LetterWeights:
                 ngraphs[graph] = freq
 
         return ngraphs
+
+    def all_letters(self) -> list[str]:
+        return [*self.letters.keys()]
+
+    def all_digraphs(self) -> list[str]:
+        return [*self.digraphs.keys()]
+
+    def top_k_digraphs(self, k) -> list[str]:
+        return sorted(self.digraphs.keys(), key=lambda d: self.digraphs[d])
