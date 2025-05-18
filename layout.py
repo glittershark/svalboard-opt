@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
 import os
-os.environ['GRB_LICENSE_FILE'] = f'{os.getcwd()}/gurobi.lic'
-print(os.getenv('GRB_LICENSE_FILE'))
+
+os.environ["GRB_LICENSE_FILE"] = f"{os.getcwd()}/gurobi.lic"
+print(os.getenv("GRB_LICENSE_FILE"))
 
 import gurobipy as gp
 import pandas as pd
@@ -10,6 +11,9 @@ import numpy as np
 from dataclasses import dataclass
 import itertools
 import collections
+
+from letter_weights import LetterWeights
+
 
 @dataclass
 class KeyboardLayout:
@@ -21,22 +25,18 @@ class KeyboardLayout:
     def assigned_key(self, letter):
         return self.key_assignments.index(letter)
 
-@dataclass
-class LetterWeights:
-    letters: dict[str, int] # map from letter to frequency
-    digraphs: dict[str, int] # map from letter pair to frequency
 
 letter_frequencies = pd.read_csv(
-    './letter-frequencies.csv',
+    "./letter-frequencies.csv",
     header=None,
-    names=['letter', 'texts', 'dictionaries'],
-    index_col='letter'
+    names=["letter", "texts", "dictionaries"],
+    index_col="letter",
 )
 
 key_costs = np.abs(np.random.randn(26))
 
 letters = [*letter_frequencies.index]
-assert(len(letters) == 26)
+assert len(letters) == 26
 
 keys = [*range(26)]
 
@@ -78,7 +78,7 @@ for line in text.splitlines():
     if not line:
         continue
 
-    for chunk, freq in itertools.batched(line.split(' '), 2):
+    for chunk, freq in itertools.batched(line.split(" "), 2):
         freq = int(freq)
         if len(chunk) == 1:
             letter_weights[chunk] = freq
@@ -97,23 +97,19 @@ m = gp.Model()
 keys_to_letters = m.addVars(letters, keys, vtype=gp.GRB.BINARY)
 
 m.addConstrs(
-    (
-        sum(keys_to_letters[letter, key] for key in keys) == 1
-        for letter in letters
-    ),
-    name='each letter assigned once'
+    (sum(keys_to_letters[letter, key] for key in keys) == 1 for letter in letters),
+    name="each letter assigned once",
 )
 
 m.addConstrs(
-    (
-        sum(keys_to_letters[letter, key] for letter in letters) == 1
-        for key in keys
-    ),
-    name='each key assigned once'
+    (sum(keys_to_letters[letter, key] for letter in letters) == 1 for key in keys),
+    name="each key assigned once",
 )
+
 
 def key_letter_weight(letter, key):
     return letter_weights[letter] * key_costs[key]
+
 
 def digraph_weight(digraph, key_pair):
     return digraph_weights[digraph] * key_transfer_costs[key_pair]
@@ -126,20 +122,20 @@ m.setObjective(
         for key in keys
     )
     + sum(
-        digraph_weight(digraph, (key1, key2)) *
-          keys_to_letters[digraph[0], key1] *
-          keys_to_letters[digraph[1], key2]
+        digraph_weight(digraph, (key1, key2))
+        * keys_to_letters[digraph[0], key1]
+        * keys_to_letters[digraph[1], key2]
         for digraph in digraphs
         for key1 in keys
         for key2 in keys
     ),
-    sense=gp.GRB.MINIMIZE
+    sense=gp.GRB.MINIMIZE,
 )
 
 m.optimize()
 
 key_assignments = [None for _ in range(len(key_costs))]
-for ((letter, key), assigned) in keys_to_letters.items():
+for (letter, key), assigned in keys_to_letters.items():
     if assigned.x == 1:
         key_assignments[key] = letter
 
